@@ -159,6 +159,7 @@ Basic expectations:
 Ideas that would meaningfully improve this service:
 
 - move API key verification + rate limiting from the Go app into Envoy (where it fits better)
+- enable envoy to handle requests via SSL (port 443) 
 - improve quality and coverage of examples (more real-world HTML, auth + cache scenarios)
 - add unit + integration tests (rate limiting, token reload, cache behavior, chrome lifecycle)
 - performance + security hardening (timeouts, SSRF protection, resource limits, input size limits)
