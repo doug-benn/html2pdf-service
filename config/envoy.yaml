@@ -33,18 +33,57 @@ static_resources:
                             cluster: html2pdf
                             prefix_rewrite: "/"
 
-                        # Optional: expose health/metrics without /api prefix (delete if you don't need it)
+                        # These routes are intentionally NOT protected by ext_authz (no auth + no rate limiting).
                         - match: { path: "/health" }
                           route: { cluster: html2pdf }
+                          typed_per_filter_config:
+                            envoy.filters.http.ext_authz:
+                              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+                              disabled: true
 
                         - match: { prefix: "/metrics" }
                           route: { cluster: html2pdf }
+                          typed_per_filter_config:
+                            envoy.filters.http.ext_authz:
+                              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+                              disabled: true
 
                         # Docs: everything else goes to nginx.
                         - match: { prefix: "/" }
                           route:
                             cluster: docs
+                          typed_per_filter_config:
+                            envoy.filters.http.ext_authz:
+                              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+                              disabled: true
+
                 http_filters:
+                  - name: envoy.filters.http.ext_authz
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                      transport_api_version: V3
+                      failure_mode_allow: false
+                      http_service:
+                        server_uri:
+                          uri: http://auth-service:9000
+                          cluster: auth_service
+                          timeout: 2s
+                        # Envoy will append the original request path to this prefix.
+                        # The auth-service accepts both /ext-authz and /ext-authz/*.
+                        path_prefix: "/ext-authz"
+                        authorization_request:
+                          allowed_headers:
+                            patterns:
+                              - exact: x-api-key
+                              - exact: user-agent
+                              - exact: x-forwarded-for
+                              - exact: x-request-id
+                              - exact: x-envoy-external-address
+                        authorization_response:
+                          allowed_upstream_headers:
+                            patterns:
+                              - exact: x-auth-mode
+
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -77,6 +116,20 @@ static_resources:
                     socket_address:
                       address: docs
                       port_value: 8080
+
+    - name: auth_service
+      connect_timeout: 2s
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: auth_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: auth-service
+                      port_value: 9000
 
 admin:
   access_log_path: /tmp/admin_access.log

@@ -25,6 +25,25 @@ services:
       timeout: 3s
       retries: 20
 
+  auth-service:
+    build: ./auth-service
+    expose:
+      - "9000"
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      AUTH_LISTEN: ":9000"
+      AUTH_PG_DSN: "postgres://html2pdf:html2pdf@postgres:5432/html2pdf?sslmode=disable"
+      AUTH_REDIS_ADDR: "redis:6379"
+      AUTH_REDIS_RATE_DB: "0"
+      AUTH_RL_INTERVAL: "1h"
+      AUTH_TOKEN_RELOAD: "1m"
+      AUTH_ENABLE_USER_LIMITER: "true"
+      AUTH_USER_LIMIT: "20"
+      # If you want to temporarily disable token rate limiting for debugging:
+      # AUTH_ENABLE_TOKEN_LIMITER: "false"
+
   html2pdf:
     build: .
     expose:
@@ -32,9 +51,8 @@ services:
     shm_size: "1gb"
     depends_on:
       - redis
-      - postgres
     environment:
-      - CHROME_BIN=/usr/bin/chromium-browser
+      CHROME_BIN: /usr/bin/chromium-browser
     volumes:
       - ./examples:/app/examples
       - ./logs:/app/logs
@@ -53,6 +71,7 @@ services:
     depends_on:
       - docs
       - html2pdf
+      - auth-service
     ports:
       - "80:80"
     volumes:

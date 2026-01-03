@@ -102,17 +102,6 @@ pdf:
 	assert.Equal(t, 0, cfg.Cache.RateLimitDB)
 	assert.Equal(t, 1, cfg.Cache.PDFCacheDB)
 
-	assert.Equal(t, time.Hour, cfg.RateLimiter.Interval)
-	assert.True(t, cfg.RateLimiter.EnableUserLimiter)
-	assert.Equal(t, 15, cfg.RateLimiter.UserLimit)
-
-	assert.Equal(t, "localhost", cfg.Auth.Postgres.Host)
-	assert.Equal(t, 5432, cfg.Auth.Postgres.Port)
-	assert.Equal(t, "html2pdf", cfg.Auth.Postgres.Database)
-	assert.Equal(t, "html2pdf", cfg.Auth.Postgres.User)
-	assert.Equal(t, "secret", cfg.Auth.Postgres.Password)
-	assert.Equal(t, "disable", cfg.Auth.Postgres.SSLMode)
-
 	assert.Equal(t, "A4", cfg.PDF.DefaultPaper)
 	assert.Contains(t, cfg.PDF.PaperSizes, "A4")
 	assert.InEpsilon(t, 8.27, cfg.PDF.PaperSizes["A4"].Width, 0.01)

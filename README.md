@@ -23,51 +23,50 @@ docker compose up --build
 
 - Docs UI: `http://localhost/`
 - API base URL (via Envoy): `http://localhost/api`
-- Health check:
-
-```bash
-curl -sS http://localhost/api/health
-```
+- Health (unprotected): `http://localhost/health`
+- Metrics (unprotected): `http://localhost/metrics`
 
 The curl examples for **POST HTML → PDF** and **GET URL → PDF** are in the [API](#api) section below.
 
 ## Requirements
 
 - **Docker + Docker Compose** (recommended, easiest)
-- Optional for local dev (without Docker): **Go 1.25+** and **Chrome/Chromium**
+- Optional for local dev (without Docker): **Go 1.23+** and **Chrome/Chromium**
+  - plus **Postgres** and **Redis** if you still want auth + rate limits + caching
 
 ## What it does
 
 - **Render PDF from raw HTML**: `POST /api/v1/pdf`
 - **Render PDF from a URL**: `GET /api/v1/pdf?url=https://…`
 - Optional **short-lived PDF cache** in Redis
-- Two-tier **rate limiting**
-  - **Token-based** via `X-API-Key` (limits are stored in Postgres)
-  - **User-based** fallback via `IP + User-Agent` (default: 20 requests / hour)
-- One Docker Compose stack with:
-  - **Envoy** as reverse proxy (`/api/*` → service, `/` → docs)
-  - **Postgres** for API token storage (simple `tokens` table)
-  - **Redis** for rate limiting + PDF cache
-  - **Nginx** serving the built-in docs UI
+
+Access + limits are enforced at the edge:
+
+- **Public access** when no `X-API-Key` header is provided (still rate-limited).
+- **API-key access** via `X-API-Key`
+  - tokens + per-token `rate_limit` are stored in Postgres (`tokens` table)
+  - the dedicated `auth-service` reloads tokens periodically
+- **Rate limiting** is tracked in Redis (shared with the renderer cache)
+  - token-based limiting uses the per-token `rate_limit` value
+  - public limiting uses a user fingerprint derived from `IP + User-Agent` (default: 20 req/hour)
+
+One Docker Compose stack with:
+
+- **Envoy** as API gateway (`/api/*` → renderer, `/` → docs)
+- **auth-service** (Go) as Envoy `ext_authz` backend (token auth + rate limiting)
+- **html2pdf** (Go) renderer service
+- **Postgres** for API token storage (simple `tokens` table)
+- **Redis** shared
+  - **rate limiting counters** (default DB 0, auth-service)
+  - **PDF cache** (default DB 1, renderer)
+- **Nginx** serving the built-in docs UI
 
 ## API
 
 ### POST HTML → PDF
 
 ```bash
-curl -X POST "http://localhost/api/v1/pdf" \
-  -F "html=<h1>Hello PDF</h1>" \
-  -F "format=A4" \
-  -o out.pdf
-```
-
-With API key:
-
-```bash
-curl -X POST "http://localhost/api/v1/pdf" \
-  -H "X-API-Key: <token>" \
-  -F "html=<h1>Priority lane</h1>" \
-  -o out.pdf
+curl -X POST "http://localhost/api/v1/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
 ```
 
 ### GET URL → PDF
@@ -76,7 +75,20 @@ curl -X POST "http://localhost/api/v1/pdf" \
 curl -L "http://localhost/api/v1/pdf?url=https://example.org" -o out.pdf
 ```
 
+### Auth / Rate limits
+
+- Public request (no key): just call the API.
+- API-key request:
+
+```bash
+curl -H "X-API-Key: YOUR_TOKEN"   -X POST "http://localhost/api/v1/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
+```
+
+If a key is invalid → **401**. If a limit is exceeded → **429**.
+
 ## Architecture
+
+High level:
 
 High level:
 
@@ -85,11 +97,17 @@ Client
   │
   ▼
 Envoy (80)
-  ├─ /        → Nginx docs UI
-  └─ /api/*   → prefix_rewrite "/" → html2pdf (Fiber, 8080)
-                      │
-                      ├─ Postgres (tokens table)
-                      └─ Redis (rate limit store + optional PDF cache)
+  ├─ /              → Nginx docs UI                 (ext_authz disabled)
+  ├─ /health        → html2pdf (Fiber, 8080)        (ext_authz disabled)
+  ├─ /metrics       → html2pdf (Fiber, 8080)        (ext_authz disabled)
+  └─ /api/*         → ext_authz → html2pdf (8080)
+                       │
+                       ▼
+                    auth-service (Go, 9000)
+                      ├─ Postgres (tokens table: token + rate_limit)
+                      └─ Redis (rate limit counters; default DB 0)
+
+html2pdf (Go) also uses Redis for the PDF cache (default DB 1).
 ```
 
 Notes:
@@ -100,31 +118,6 @@ Notes:
   - limiter storage (default DB `0`)
   - PDF cache (default DB `1`)
 
-## Configuration
-
-Config is a single YAML file (default: `config/html2pdf.yaml`).
-
-- Override path via `CONFIG_PATH=/path/to/html2pdf.yaml`
-- Key sections:
-  - `server` (listen host/port, prefork)
-  - `cache` (Redis host, DBs, PDF cache on/off, TTL)
-  - `rate_limiter` (interval, user limiter toggle + limit)
-  - `auth.postgres` (token table source)
-  - `pdf` (timeout, chrome flags, pooling, paper sizes)
-
-Related docs:
-
-- `docs/redis.md`
-- `docs/postgres.md`
-
-## Observability
-
-- Health: `GET /health`
-- Simple runtime info: `GET /v1/chrome/stats`
-- Fiber monitor UI: `GET /v1/monitor`
-
-(With Envoy, those endpoints are available under `http://localhost/api/...`.)
-
 ## Security notes
 
 **Live demo:** `https://html2pdf.aplgr.com`
@@ -132,38 +125,28 @@ Related docs:
 This endpoint is a personal **demo/playground**. It may be rate-limited, wiped, and redeployed at any time.
 **Do not send sensitive data.** If someone manages to break it, the realistic outcome is: I nuke the box and redeploy.
 
-If you expose this service publicly (or run it in production), harden it first. It can render arbitrary HTML and fetch arbitrary URLs, which makes it effectively **browser-as-a-service**.
+If you expose this service publicly (or run it in production), harden it first:
 
-Security-related PRs are very welcome. If you find something serious, prefer **GitHub Security Advisories** over a public issue.
+- Put Envoy in front (as in this repo) and do not expose the renderer directly.
+- Add SSRF protections if you allow arbitrary `url=...` rendering.
+- Put strict timeouts and size limits on requests and on headless Chrome.
+- Consider stricter auth policies (e.g., require API keys for PDF rendering, keep public access only for docs/health).
 
-## Contributing
+## Development notes
 
-PRs are welcome.
+- The auth component lives in `auth-service/` and ships with its own README + unit tests.
+- Redis is shared between auth + renderer; keep DBs/prefixes separated to avoid collisions.
+- If you run without Docker, you will need compatible Postgres/Redis endpoints and a local Chrome/Chromium.
 
-Especially welcome:
-- security + hardening improvements (auth/rate limiting at the edge, SSRF defenses, safer defaults)
-- tests (unit + integration) and better real-world examples
-- performance and stability improvements around Chrome lifecycle handling
-
-If you plan a larger change, open an issue first so we can align on direction and scope.
-
-Basic expectations:
-
-- run `go test ./...` and keep tests green
-- run `gofmt` on Go code
-- keep examples in `examples/` runnable (curl snippets should work)
-- if you change config, update `config/html2pdf.yaml` and the README
-
-## Mini-roadmap
+## Roadmap
 
 Ideas that would meaningfully improve this service:
 
-- move API key verification + rate limiting from the Go app into Envoy (where it fits better)
 - enable envoy to handle requests via SSL (port 443) 
-- improve quality and coverage of examples (more real-world HTML, auth + cache scenarios)
-- add unit + integration tests (rate limiting, token reload, cache behavior, chrome lifecycle)
-- performance + security hardening (timeouts, SSRF protection, resource limits, input size limits)
+- improve quality and coverage of examples (more real-world HTML, auth scenarios etc.)
+- add unit + integration tests (rate limiting, token reload, cache behavior, chrome lifecycle, Envoy + ext_authz + auth-service + renderer)
 - move observability endpoints under the service path and protect them separately (e.g. dedicated API key)
+- performance + security hardening (timeouts, SSRF protection, resource limits, input size limits)
 - make Chrome tab/session handling more robust (leaks, crashes, concurrency edge cases)
 
 ## Status

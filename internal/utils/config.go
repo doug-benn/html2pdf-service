@@ -38,16 +38,6 @@ type Config struct {
 		PDFCacheDB      int           `yaml:"redis_pdf_db"`      // Redis DB for PDF caching
 	} `yaml:"cache"`
 
-	RateLimiter struct {
-		Interval          time.Duration `yaml:"interval"`            // Duration of the rate limiting window
-		EnableUserLimiter bool          `yaml:"enable_user_limiter"` // Toggle user based rate limiting
-		UserLimit         int           `yaml:"user_limit"`          // Requests per interval for user based limiting
-	} `yaml:"rate_limiter"`
-
-	Auth struct {
-		Postgres PostgresConfig `yaml:"postgres"`
-	} `yaml:"auth"`
-
 	PDF struct {
 		DefaultPaper    string               `yaml:"default_paper"`     // Default paper format if none is provided
 		PaperSizes      map[string]PaperSize `yaml:"paper_sizes"`       // Map of available paper formats and their sizes
@@ -57,19 +47,6 @@ type Config struct {
 		ChromePoolSize  int                  `yaml:"chrome_pool_size"`  // Number of preloaded Chrome tabs (0 = disabled)
 		UserDataDir     string               `yaml:"user_data_dir"`     // Optional fixed user data dir (recommended when pooling)
 	} `yaml:"pdf"`
-}
-
-// PostgresConfig contains the connection settings for Postgres.
-//
-// Note: Keep this intentionally simple. If you prefer a single DSN, set Host to
-// a non-empty value and keep the remaining fields as needed.
-type PostgresConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Database string `yaml:"database"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	SSLMode  string `yaml:"sslmode"`
 }
 
 // PaperSize defines width and height in inches for a specific paper format.

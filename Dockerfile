@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.25-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /build
 
@@ -15,8 +15,7 @@ RUN apk add --no-cache \
     ttf-dejavu \
     font-noto \
     font-noto-emoji \
-    dumb-init \
-    postgresql-client
+    dumb-init
 
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROME_NO_SANDBOX=true
@@ -24,6 +23,5 @@ ENV CHROME_NO_SANDBOX=true
 WORKDIR /app
 
 COPY --from=builder /build/html2pdf /app/html2pdf
-COPY --from=builder /build/migrations /app/migrations
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["./html2pdf"]
