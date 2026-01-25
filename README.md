@@ -8,6 +8,7 @@ It ships with a small local stack (Envoy + Postgres + Redis + docs UI) so you ca
 [![scope](https://img.shields.io/badge/scope-microservice-blue)](#scope)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+[![Tests](https://github.com/aplgr/html2pdf-service/actions/workflows/tests.yml/badge.svg)](https://github.com/aplgr/zim-to-obsidian/actions/workflows/tests.yml)
 [![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](#requirements)
 [![Go Reference](https://pkg.go.dev/badge/github.com/aplgr/html2pdf-service.svg)](https://pkg.go.dev/github.com/aplgr/html2pdf-service)
 [![Go Report Card](https://goreportcard.com/badge/github.com/aplgr/html2pdf-service)](https://goreportcard.com/report/github.com/aplgr/html2pdf-service)

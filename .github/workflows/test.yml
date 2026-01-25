@@ -23,20 +23,37 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          # This repository contains multiple Go modules under services/.
+          # We pin the toolchain based on one of the module go.mod files.
+          go-version-file: services/pdf-renderer/go.mod
           cache: true
+          cache-dependency-path: |
+            services/auth-service/go.sum
+            services/pdf-renderer/go.sum
 
-      - name: Unit tests
-        run: go test ./...
+      - name: Unit + race + coverage (all modules)
+        run: |
+          set -euo pipefail
 
-      - name: Race tests
-        run: go test -race ./...
+          modules=(
+            services/auth-service
+            services/pdf-renderer
+          )
 
-      - name: Coverage
-        run: go test ./... -coverprofile=coverage.out
+          for m in "${modules[@]}"; do
+            echo "==> $m: unit"
+            (cd "$m" && go test ./...)
+
+            echo "==> $m: race"
+            (cd "$m" && go test -race ./...)
+
+            echo "==> $m: coverage"
+            (cd "$m" && go test ./... -coverprofile=coverage.out)
+            mv "$m/coverage.out" "coverage-${m##*/}.out"
+          done
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage
-          path: coverage.out
+          path: coverage-*.out
