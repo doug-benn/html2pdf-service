@@ -44,8 +44,8 @@ The curl examples for **POST HTML → PDF** and **GET URL → PDF** are in the [
 
 ## What it does
 
-- **Render PDF from raw HTML**: `POST /api/v1/pdf`
-- **Render PDF from a URL**: `GET /api/v1/pdf?url=https://…`
+- **Render PDF from raw HTML**: `POST /api/v0/pdf`
+- **Render PDF from a URL**: `GET /api/v0/pdf?url=https://…`
 - Optional **short-lived PDF cache** in Redis
 
 Access + limits are enforced at the edge:
@@ -74,13 +74,13 @@ One Docker Compose stack with:
 ### POST HTML → PDF
 
 ```bash
-curl -X POST "http://localhost/api/v1/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
+curl -X POST "http://localhost/api/v0/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
 ```
 
 ### GET URL → PDF
 
 ```bash
-curl -L "http://localhost/api/v1/pdf?url=https://example.org" -o out.pdf
+curl -L "http://localhost/api/v0/pdf?url=https://example.org" -o out.pdf
 ```
 
 ### Auth / Rate limits
@@ -89,7 +89,7 @@ curl -L "http://localhost/api/v1/pdf?url=https://example.org" -o out.pdf
 - API-key request:
 
 ```bash
-curl -H "X-API-Key: YOUR_TOKEN"   -X POST "http://localhost/api/v1/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
+curl -H "X-API-Key: YOUR_TOKEN"   -X POST "http://localhost/api/v0/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
 ```
 
 If a key is invalid → **401**. If a limit is exceeded → **429**.
@@ -120,7 +120,7 @@ html2pdf (Go) also uses Redis for the PDF cache (default DB 1).
 
 Notes:
 
-- Envoy rewrites `/api/...` to `/...` so the Go service can stay on `/v1/*`.
+- Envoy rewrites `/api/...` to `/...` so the Go service can stay on `/v0/*`.
 - Postgres is used as a tiny token store. Tokens are loaded periodically at runtime.
 - Redis is used for:
   - limiter storage (default DB `0`)

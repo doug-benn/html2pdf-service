@@ -55,14 +55,14 @@ func New(deps Deps) *fiber.App {
 }
 
 func registerRoutes(app *fiber.App, cfg config.Config, redis *redis.Client) {
-	v1 := app.Group("/v1")
+	v0 := app.Group("/v0")
 
-	// Create one shared service instance so /v1/pdf (GET+POST) share the same Chrome pool.
+	// Create one shared service instance so /v0/pdf (GET+POST) share the same Chrome pool.
 	svc := handlers.NewPDFService(cfg, redis)
 
-	v1.Post("/pdf", svc.HandleConversion)
-	v1.Get("/pdf", svc.HandleURLConversion)
-	v1.Get("/chrome/stats", svc.HandleChromeStats)
+	v0.Post("/pdf", svc.HandleConversion)
+	v0.Get("/pdf", svc.HandleURLConversion)
+	v0.Get("/chrome/stats", svc.HandleChromeStats)
 
-	v1.Get("/monitor", monitor.New())
+	v0.Get("/monitor", monitor.New())
 }

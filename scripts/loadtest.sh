@@ -2,7 +2,7 @@
 # Simple load testing script for html2pdf service.
 # Usage: ./scripts/loadtest.sh [url] [html_file] [concurrency] [requests]
 
-URL=${1:-http://localhost/api/v1/pdf}
+URL=${1:-http://localhost/api/v0/pdf}
 HTML_FILE=${2:-examples/example.html}
 CONCURRENCY=${3:-10}
 REQUESTS=${4:-200}

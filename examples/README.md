@@ -24,7 +24,7 @@ This directory contains sample HTML files demonstrating different use cases for 
 Replace `&lt;your-token&gt;` with a valid API key.
 
 ```bash
-curl -X POST http://localhost/api/v1/pdf \
+curl -X POST http://localhost/api/v0/pdf \
   -H "X-API-Key: <your-token>" \
   -F "html=@examples/invoice.html" \
   --output invoice.pdf
@@ -35,7 +35,7 @@ curl -X POST http://localhost/api/v1/pdf \
 The service can also fetch remote content directly:
 
 ```bash
-curl -X GET "http://localhost/api/v1/pdf?url=https://example.com" \
+curl -X GET "http://localhost/api/v0/pdf?url=https://example.com" \
   -H "X-API-Key: <your-token>" \
   --output page.pdf
 ```

@@ -6,9 +6,9 @@ It is designed to run behind the project gateway (Envoy). Authentication and rat
 
 ## Endpoints
 
-All endpoints are under `/v1`:
+All endpoints are under `/v0`:
 
-- `POST /v1/pdf`
+- `POST /v0/pdf`
   - Content type: `application/x-www-form-urlencoded` or `multipart/form-data`
   - Form fields:
     - `html` (required) — HTML string (min length checks apply)
@@ -18,16 +18,16 @@ All endpoints are under `/v1`:
     - `filename` (optional) — must end with `.pdf` and match `^[a-zA-Z0-9_.-]+$` (default `output.pdf`)
   - Response: `application/pdf`
 
-- `GET /v1/pdf`
+- `GET /v0/pdf`
   - Query parameters:
     - `url` (required) — `http` / `https` URL to render
-    - `format`, `orientation`, `margin`, `filename` — same meaning as in `POST /v1/pdf`
+    - `format`, `orientation`, `margin`, `filename` — same meaning as in `POST /v0/pdf`
   - Response: `application/pdf`
 
-- `GET /v1/chrome/stats`
+- `GET /v0/chrome/stats`
   - Basic stats about the Chrome pool (useful for debugging load / pooling).
 
-- `GET /v1/monitor`
+- `GET /v0/monitor`
   - Fiber monitor endpoint (intended for internal use).
 
 ## Configuration
