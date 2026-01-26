@@ -20,6 +20,8 @@ It ships with a small local stack (Envoy + Postgres + Redis + docs UI) so you ca
 make start
 ```
 
+`make start` will generate a local self-signed TLS certificate if one is missing.
+
 Stop the stack:
 
 ```bash
@@ -30,10 +32,10 @@ make stop
 
 - Live demo (public, **demo only**): `https://html2pdf.aplgr.com`
 
-- Docs UI: `http://localhost/`
-- API base URL (via Envoy): `http://localhost/api`
-- Health (unprotected): `http://localhost/health`
-- Metrics (unprotected): `http://localhost/metrics`
+- Docs UI: `https://localhost/`
+- API base URL (via Envoy): `https://localhost/api`
+- Health (unprotected): `https://localhost/health`
+- Metrics (unprotected): `https://localhost/metrics`
 
 The curl examples for **POST HTML → PDF** and **GET URL → PDF** are in the [API](#api) section below.
 
@@ -75,13 +77,13 @@ One Docker Compose stack with:
 ### POST HTML → PDF
 
 ```bash
-curl -X POST "http://localhost/api/v0/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
+curl -k -X POST "https://localhost/api/v0/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
 ```
 
 ### GET URL → PDF
 
 ```bash
-curl -L "http://localhost/api/v0/pdf?url=https://example.org" -o out.pdf
+curl -k -L "https://localhost/api/v0/pdf?url=https://example.org" -o out.pdf
 ```
 
 ### Auth / Rate limits
@@ -90,7 +92,7 @@ curl -L "http://localhost/api/v0/pdf?url=https://example.org" -o out.pdf
 - API-key request:
 
 ```bash
-curl -H "X-API-Key: YOUR_TOKEN"   -X POST "http://localhost/api/v0/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
+curl -k -H "X-API-Key: YOUR_TOKEN"   -X POST "https://localhost/api/v0/pdf"   -F "html=<h1>Hello PDF</h1>"   -o out.pdf
 ```
 
 If a key is invalid → **401**. If a limit is exceeded → **429**.
@@ -105,7 +107,7 @@ High level:
 Client
   │
   ▼
-Envoy (80)
+Envoy (443)
   ├─ /              → Nginx docs UI                 (ext_authz disabled)
   ├─ /health        → html2pdf (Fiber, 8080)        (ext_authz disabled)
   ├─ /metrics       → html2pdf (Fiber, 8080)        (ext_authz disabled)
@@ -121,6 +123,7 @@ html2pdf (Go) also uses Redis for the PDF cache (default DB 1).
 
 Notes:
 
+- Envoy listens on HTTPS (443) and redirects HTTP (80) to HTTPS.
 - Envoy rewrites `/api/...` to `/...` so the Go service can stay on `/v0/*`.
 - Postgres is used as a tiny token store. Tokens are loaded periodically at runtime.
 - Redis is used for:
@@ -146,6 +149,23 @@ If you expose this service publicly (or run it in production), harden it first:
 - The auth component lives in `auth-service/` and ships with its own README + unit tests.
 - Redis is shared between auth + renderer; keep DBs/prefixes separated to avoid collisions.
 - If you run without Docker, you will need compatible Postgres/Redis endpoints and a local Chrome/Chromium.
+
+### HTTPS local development (self-signed)
+
+Envoy expects TLS files mounted at `/etc/envoy/tls` (see `deploy/docker-compose.yml`).
+You can generate a local self-signed certificate with:
+
+```bash
+make cert
+```
+
+Then start the stack and use `https://localhost/...` (add `-k` to curl to trust the
+self-signed certificate). The TLS files are gitignored so private keys are not committed.
+
+### HTTPS production notes
+
+In production, mount your real certificate/key into `/etc/envoy/tls` so Envoy can
+read `/etc/envoy/tls/tls.crt` and `/etc/envoy/tls/tls.key`.
 
 ## Status
 

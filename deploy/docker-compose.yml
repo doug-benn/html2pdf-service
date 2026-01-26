@@ -67,8 +67,10 @@ services:
     - auth-service
     ports:
     - 80:80
+    - 443:443
     volumes:
     - ../gateway/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    - ../gateway/envoy/tls:/etc/envoy/tls:ro
     command:
     - envoy
     - -c
