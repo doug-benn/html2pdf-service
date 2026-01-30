@@ -74,6 +74,32 @@ cd auth-service
 go build ./cmd/auth-service
 ```
 
+## Schema management (deploy-time)
+
+The auth-service owns the `tokens` table schema. Apply migrations during deployment (not at runtime):
+
+```bash
+psql "$AUTH_POSTGRES_DSN" -f services/auth-service/deploy/postgres/migrations/001_create_tokens_table.sql
+```
+
+The migration is idempotent and safe to re-run for existing deployments.
+
+### Schema validation
+
+Deploys should fail fast if the schema is missing or invalid. The verification script uses pgTAP, so ensure
+the extension is available, then run it as part of the deployment pipeline:
+
+```bash
+psql "$AUTH_POSTGRES_DSN" -f services/auth-service/deploy/postgres/verify_tokens_schema.sql
+```
+
+The script raises an error if required tables, columns, or indexes are missing.
+
+### Docker Compose
+
+The project `deploy/docker-compose.yml` includes a one-shot `auth-migrate` service that waits for Postgres,
+applies the migrations, and runs the pgTAP verification script before the auth-service starts.
+
 ## Project layout
 
 The layout is intentionally small but keeps the separation of concerns:
