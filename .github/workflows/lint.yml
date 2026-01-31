@@ -1,0 +1,43 @@
+name: Go lint
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  GO_VERSION: stable
+  GOLANGCI_LINT_VERSION: v2.6
+  CGO_ENABLED: 1
+
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  pull-requests: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module:
+          - services/auth-service
+          - services/pdf-renderer
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          only-new-issues: true
+          working-directory: ${{ matrix.module }}
