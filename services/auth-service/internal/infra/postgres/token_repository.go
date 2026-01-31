@@ -20,14 +20,14 @@ func (r *TokenRepository) LoadTokens(ctx context.Context) (map[string]int, error
 	if err != nil {
 		return nil, err
 	}
-	if err := EnsureSchema(db); err != nil {
+	if err := VerifySchema(db); err != nil {
 		return nil, err
 	}
 
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	rows, err := db.QueryContext(cctx, `SELECT token, rate_limit FROM tokens;`)
+	rows, err := db.QueryContext(cctx, `SELECT token, rate_limit FROM fn_fetch_auth_tokens();`)
 	if err != nil {
 		return nil, err
 	}

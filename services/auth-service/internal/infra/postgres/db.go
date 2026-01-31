@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 	"time"
 
@@ -45,23 +46,12 @@ func (p *DB) Get(dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
-func EnsureSchema(db *sql.DB) error {
+func VerifySchema(db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ddl1 := `CREATE TABLE IF NOT EXISTS tokens (
-		token TEXT PRIMARY KEY,
-		rate_limit INTEGER NOT NULL DEFAULT 60,
-		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		comment TEXT
-	);`
-	ddl2 := `CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at);`
-
-	if _, err := db.ExecContext(ctx, ddl1); err != nil {
-		return err
-	}
-	if _, err := db.ExecContext(ctx, ddl2); err != nil {
-		return err
+	if _, err := db.ExecContext(ctx, `SELECT fn_verify_tokens_schema();`); err != nil {
+		return fmt.Errorf("auth-service schema check failed: %w", err)
 	}
 	return nil
 }

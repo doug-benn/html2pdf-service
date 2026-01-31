@@ -16,7 +16,6 @@ services:
       POSTGRES_PASSWORD: html2pdf
     volumes:
     - postgres_data:/var/lib/postgresql/data
-    - ./postgres/migrations/001_create_tokens_table.sql:/docker-entrypoint-initdb.d/001_create_tokens_table.sql:ro
     healthcheck:
       test:
       - CMD-SHELL
@@ -31,15 +30,29 @@ services:
     depends_on:
     - redis
     - postgres
+    - auth-migrate
+    volumes:
+    - ../logs:/logs
+    - ../services/auth-service/config/auth-service.yaml:/app/config/auth-service.yaml:ro
+  auth-migrate:
+    image: postgres:16
+    depends_on:
+    - postgres
     environment:
-      AUTH_LISTEN: :9000
-      AUTH_PG_DSN: postgres://html2pdf:html2pdf@postgres:5432/html2pdf?sslmode=disable
-      AUTH_REDIS_ADDR: redis:6379
-      AUTH_REDIS_RATE_DB: '0'
-      AUTH_RL_INTERVAL: 1h
-      AUTH_TOKEN_RELOAD: 1m
-      AUTH_ENABLE_USER_LIMITER: 'true'
-      AUTH_USER_LIMIT: '20'
+      PGPASSWORD: html2pdf
+    volumes:
+    - ../services/auth-service/deploy/postgres/migrations:/migrations:ro
+    - ../services/auth-service/deploy/postgres/verify_tokens_schema.sql:/verify_tokens_schema.sql:ro
+    command:
+    - sh
+    - -c
+    - >-
+      apt-get update;
+      apt-get install -y postgresql-16-pgtap;
+      rm -rf /var/lib/apt/lists/*;
+      until pg_isready -h postgres -U html2pdf -d html2pdf; do sleep 1; done;
+      psql -h postgres -U html2pdf -d html2pdf -v ON_ERROR_STOP=1 -f /migrations/001_create_tokens_table.sql;
+      psql -h postgres -U html2pdf -d html2pdf -v ON_ERROR_STOP=1 -f /verify_tokens_schema.sql;
   html2pdf:
     build: ../services/pdf-renderer
     expose:
