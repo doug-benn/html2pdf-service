@@ -3,7 +3,7 @@
 A pragmatic HTTP service that renders **HTML** (or a remote **URL**) to **PDF** using headless Chrome.
 It ships with a small local stack (Envoy + Postgres + Redis + docs UI) so you can run it as a self-contained component.
 
-[![live demo](https://img.shields.io/badge/live%20demo-html2pdf.aplgr.com-2ea44f)](https://html2pdf.aplgr.com)
+[![live demo](http://img.shields.io/badge/live%20demo-html2pdf.aplgr.com-2ea44f)](http://html2pdf.aplgr.com)
 [![status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![scope](https://img.shields.io/badge/scope-microservice-blue)](#scope)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -101,8 +101,6 @@ If a key is invalid → **401**. If a limit is exceeded → **429**.
 
 High level:
 
-High level:
-
 ```
 Client
   │
@@ -131,7 +129,7 @@ Notes:
 
 ## Security notes
 
-**Live demo:** `https://html2pdf.aplgr.com`
+**Live demo:** [http://html2pdf.aplgr.com](https://html2pdf.aplgr.com)
 
 This endpoint is a personal **demo/playground**. It may be rate-limited, wiped, and redeployed at any time.
 **Do not send sensitive data.** If someone manages to break it, the realistic outcome is: I nuke the box and redeploy.
