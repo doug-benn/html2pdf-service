@@ -111,7 +111,7 @@ fmt:
 	@set -euo pipefail; \
 	for m in $(MODULES); do \
 		echo "==> $$m: gofmt"; \
-		( cd $$m && gofmt -w $$(go list -f '{{.Dir}}' ./... 2>/dev/null) ); \
+		( cd $$m && gofmt -w -s $$(go list -f '{{.Dir}}' ./... 2>/dev/null) ); \
 	done
 
 # Run go mod tidy for all modules

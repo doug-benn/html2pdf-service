@@ -3,7 +3,7 @@
 A pragmatic HTTP service that renders **HTML** (or a remote **URL**) to **PDF** using headless Chrome.
 It ships with a small local stack (Envoy + Postgres + Redis + docs UI) so you can run it as a self-contained component.
 
-[![live demo](https://img.shields.io/badge/live%20demo-html2pdf.aplgr.com-2ea44f)](https://html2pdf.aplgr.com)
+[![live demo](http://img.shields.io/badge/live%20demo-html2pdf.aplgr.com-2ea44f)](http://html2pdf.aplgr.com)
 [![status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![scope](https://img.shields.io/badge/scope-microservice-blue)](#scope)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -34,7 +34,7 @@ make stop
 
 - Docs UI: `https://localhost/`
 - API base URL (via Envoy): `https://localhost/api`
-- Health (unprotected): `https://localhost/health`
+- Ops health (requires ops-enabled token): `https://localhost/ops/health`
 
 The curl examples for **POST HTML → PDF** and **GET URL → PDF** are in the [API](#api) section below.
 
@@ -55,6 +55,7 @@ Access + limits are enforced at the edge:
 - **Public access** when no `X-API-Key` header is provided (still rate-limited).
 - **API-key access** via `X-API-Key`
   - tokens + per-token `rate_limit` are stored in Postgres (`tokens` table)
+  - tokens also include a JSONB `scope` (default: `{"api": true}`) to control ops access
   - the dedicated `auth-service` reloads tokens periodically
 - **Rate limiting** is tracked in Redis (shared with the renderer cache)
   - token-based limiting uses the per-token `rate_limit` value
@@ -100,20 +101,18 @@ If a key is invalid → **401**. If a limit is exceeded → **429**.
 
 High level:
 
-High level:
-
 ```
 Client
   │
   ▼
 Envoy (443)
   ├─ /              → Nginx docs UI                 (ext_authz disabled)
-  ├─ /health        → html2pdf (Fiber, 8080)        (ext_authz disabled)
+  ├─ /ops/health    → ext_authz → html2pdf (8080)
   └─ /api/*         → ext_authz → html2pdf (8080)
                        │
                        ▼
                     auth-service (Go, 9000)
-                      ├─ Postgres (tokens table: token + rate_limit)
+                      ├─ Postgres (tokens table: token + rate_limit + scope)
                       └─ Redis (rate limit counters; default DB 0)
 
 html2pdf (Go) also uses Redis for the PDF cache (default DB 1).
@@ -130,7 +129,7 @@ Notes:
 
 ## Security notes
 
-**Live demo:** `https://html2pdf.aplgr.com`
+**Live demo:** [http://html2pdf.aplgr.com](https://html2pdf.aplgr.com)
 
 This endpoint is a personal **demo/playground**. It may be rate-limited, wiped, and redeployed at any time.
 **Do not send sensitive data.** If someone manages to break it, the realistic outcome is: I nuke the box and redeploy.
@@ -140,7 +139,18 @@ If you expose this service publicly (or run it in production), harden it first:
 - Put Envoy in front (as in this repo) and do not expose the renderer directly.
 - Add SSRF protections if you allow arbitrary `url=...` rendering.
 - Put strict timeouts and size limits on requests and on headless Chrome.
-- Consider stricter auth policies (e.g., require API keys for PDF rendering, keep public access only for docs/health).
+- Consider stricter auth policies (e.g., require API keys for PDF rendering, keep public access only for docs).
+
+### Ops endpoint auth
+
+Ops endpoints (under `/ops/*`) require a token that includes the `ops` scope.
+Tokens are stored in Postgres and default to `{"api": true}`. To allow ops access, set `ops: true`:
+
+```sql
+UPDATE tokens
+SET scope = jsonb_set(scope, '{ops}', 'true', true)
+WHERE token = 'YOUR_TOKEN';
+```
 
 ## Development notes
 
